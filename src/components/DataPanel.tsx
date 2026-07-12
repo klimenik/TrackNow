@@ -1,6 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Store } from "../lib/useStore";
-import { exportBackup, getLastBackup } from "../lib/storage";
+import {
+  exportBackup,
+  getLastBackup,
+  persistedStatus,
+  requestPersistence,
+} from "../lib/storage";
 
 interface Props {
   store: Store;
@@ -31,6 +36,13 @@ export function DataPanel({ store }: Props) {
   const stale =
     hasData &&
     (!lastBackup || Date.now() - new Date(lastBackup).getTime() > WEEK_MS);
+
+  const [persist, setPersist] = useState<"on" | "off" | "unsupported" | "…">(
+    "…",
+  );
+  useEffect(() => {
+    persistedStatus().then(setPersist);
+  }, []);
 
   const onImportFile = async (file: File) => {
     try {
@@ -90,6 +102,40 @@ export function DataPanel({ store }: Props) {
       {stale && (
         <p className="warn">
           ⚠ It's been a while — export a backup so you don't lose your data.
+        </p>
+      )}
+
+      {persist !== "…" && (
+        <p className="backup-age">
+          Persistent storage:{" "}
+          <strong>
+            {persist === "on"
+              ? "on"
+              : persist === "unsupported"
+                ? "not supported here"
+                : "off"}
+          </strong>
+          {persist === "off" && (
+            <>
+              {" · "}
+              <button
+                className="link-btn"
+                onClick={() =>
+                  requestPersistence().then((r) =>
+                    setPersist(
+                      r === "persisted"
+                        ? "on"
+                        : r === "unsupported"
+                          ? "unsupported"
+                          : "off",
+                    ),
+                  )
+                }
+              >
+                enable
+              </button>
+            </>
+          )}
         </p>
       )}
 

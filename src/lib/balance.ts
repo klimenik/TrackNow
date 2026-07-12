@@ -89,25 +89,19 @@ export function dayInfo(
       state: worked > 0 ? "weekend-work" : "empty",
     };
   }
-  // Working day.
-  if (key < tKey) {
-    return {
-      key,
-      worked,
-      balance: worked - DAILY,
-      state: worked >= DAILY ? "met" : "under",
-    };
+  // Working day. Only days you actually tracked affect the balance — an
+  // untracked working day (past, today or future) is ignored, never -8.
+  if (worked <= 0) {
+    return { key, worked, balance: 0, state: "empty" };
   }
-  // Today or future: only counts once something is tracked.
-  if (worked > 0) {
-    return {
-      key,
-      worked,
-      balance: worked - DAILY,
-      state: worked >= DAILY ? "met" : "progress",
-    };
-  }
-  return { key, worked, balance: 0, state: "empty" };
+  const reached = worked >= DAILY;
+  return {
+    key,
+    worked,
+    balance: worked - DAILY,
+    // A short day today is still "in progress"; a short day in the past is under.
+    state: reached ? "met" : key >= tKey ? "progress" : "under",
+  };
 }
 
 /** Earliest day key that holds any data, or today if there is none. */
@@ -180,9 +174,12 @@ export function summarize(
   for (const info of infos) {
     workedSum += info.worked;
     balanceSum += info.balance;
-    // Nominal target: 8 h on every working day that isn't covered by an
-    // absence. Weekends and vacation/holiday/sick days carry no target.
-    if (!info.mark && isWorkday(info.key)) targetSum += DAILY;
+    // Target = 8 h for today (your goal) and for any past working day you
+    // actually tracked. Untracked days carry no target, so they never drag
+    // the balance down.
+    if (!info.mark && isWorkday(info.key)) {
+      if (info.key === tKey || info.worked > 0) targetSum += DAILY;
+    }
   }
   return {
     worked: workedSum,

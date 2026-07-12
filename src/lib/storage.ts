@@ -47,6 +47,25 @@ export function saveRunning(running: RunningSession | null): void {
   else localStorage.removeItem(RUNNING_KEY);
 }
 
+/**
+ * Ask the browser to keep this site's local data persistent, so it is not
+ * evicted under storage pressure (notably on iOS/Safari). Safe to call on every
+ * load; it is a no-op if already granted or unsupported.
+ */
+export async function requestPersistence(): Promise<
+  "persisted" | "denied" | "unsupported"
+> {
+  if (!navigator.storage?.persist) return "unsupported";
+  if (await navigator.storage.persisted?.()) return "persisted";
+  return (await navigator.storage.persist()) ? "persisted" : "denied";
+}
+
+/** Current persistence status without requesting it. */
+export async function persistedStatus(): Promise<"on" | "off" | "unsupported"> {
+  if (!navigator.storage?.persisted) return "unsupported";
+  return (await navigator.storage.persisted()) ? "on" : "off";
+}
+
 export function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
